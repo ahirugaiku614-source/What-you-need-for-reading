@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useMemo, useRef, useState } from 'react';
 import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
