@@ -1,6 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useMemo, useRef, useState } from 'react';
 import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -125,11 +126,43 @@ export default function CameraScreen() {
 
   // 撮影処理
   const takePicture = async () => {
-    if (cameraRef.current) {
+    if (!cameraRef.current||containerSize.width === 0) return;
+    try{
       const photo = await cameraRef.current.takePictureAsync();
-      console.log('撮影した画像:', photo);
-      alert('撮影しました！');
+      
+      // 撮影された実際の画像サイズと、画面の表示サイズから倍率を計算
+      const scaleX=photo.width/containerSize.width;
+      const scaleY=photo.height/containerSize.height;
+
+      //画面上のスキャン枠の位置とサイズを実際のが画像サイズに変更
+      const originX=box.left*scaleX;
+      const originY=box.top*scaleY;
+      const cropWidth = box.width * scaleX;
+      const cropHeight = box.height * scaleY;
+
+   　const croppedPhoto = await ImageManipulator.manipulateAsync(
+        photo.uri,
+        [
+          {
+            crop: {
+              originX: originX,
+              originY: originY,
+              width: cropWidth,
+              height: cropHeight,
+            },
+          },
+        ],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+         console.log('切り抜き成功！画像URI:', croppedPhoto.uri);
+         alert('枠の中だけを切り抜いて保存しました！');
+
+    }catch(error){
+      console.error('切り抜き失敗:', error);
+      alert('エラーが発生しました');
     }
+      
+    
   };
 
   return (
