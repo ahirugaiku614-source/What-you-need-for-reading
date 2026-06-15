@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import React, { useRef, useState, useMemo } from 'react';
-import { Button, StyleSheet, TouchableOpacity, View, PanResponder, LayoutChangeEvent } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -38,16 +38,10 @@ export default function CameraScreen() {
   };
 
   // 各ハンドル共通のPanResponder生成関数
-  const createPanResponder = (type: 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r' | 'center') => {
+  const createPanResponder = (type: 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r') => {
     return PanResponder.create({
-      onStartShouldSetPanResponder: () => type !== 'center',
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        if (type === 'center') {
-          // 中央部は誤タップを防ぐため、少し動いてからドラッグと判定する
-          return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
-        }
-        return true;
-      },
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         dragStartBox.current = { ...boxRef.current };
       },
@@ -94,9 +88,6 @@ export default function CameraScreen() {
           newWidth = rightLimit - newLeft;
         } else if (type === 'r') {
           newWidth = Math.max(minSize, Math.min(initial.width + dx, container.width - initial.left));
-        } else if (type === 'center') {
-          newLeft = Math.max(0, Math.min(initial.left + dx, container.width - initial.width));
-          newTop = Math.max(0, Math.min(initial.top + dy, container.height - initial.height));
         }
 
         setBox({
@@ -120,7 +111,6 @@ export default function CameraScreen() {
       b: createPanResponder('b'),
       l: createPanResponder('l'),
       r: createPanResponder('r'),
-      center: createPanResponder('center'),
     };
   }, []);
 
@@ -220,20 +210,7 @@ export default function CameraScreen() {
               ]}
             />
 
-            {/* 中央のドラッグ（移動）領域 */}
-            <View
-              style={[
-                styles.centerDragArea,
-                {
-                  position: 'absolute',
-                  top: box.top + 20,
-                  left: box.left + 20,
-                  width: box.width - 40,
-                  height: box.height - 40,
-                },
-              ]}
-              {...responders.center.panHandlers}
-            />
+            {/* 中央の領域にはドラッグ用のPanResponderをアタッチしない */}
 
             {/* 辺のドラッグ領域 */}
             {/* 上辺 */}
@@ -439,10 +416,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 9,
   },
-  centerDragArea: {
-    backgroundColor: 'transparent',
-    zIndex: 8,
-  },
+
 
   // 角のL字マーク（高視認性ネオングリーン＋シャドウ）
   cornerVisual: {
