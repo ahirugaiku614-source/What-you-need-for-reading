@@ -1,17 +1,28 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import React, { useMemo, useRef, useState } from 'react';
-import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View } from 'react-native';
-import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import React, { useMemo, useRef, useState } from 'react';
+import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View,Text } from 'react-native';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null); // カメラを操作するための参照
-
+  // 現在のモード（meanign=単語帳用、kanji=漢字用、text=メモ用）
+  const [currentMode, setCurrenMode] = useState<'meaning' | 'kanji' | 'text'>('text');
   // スキャン枠の座標とサイズ
   const [box, setBox] = useState({ top: 100, left: 100, width: 150, height: 150 });
   // コンテナのサイズ（onLayoutで取得）
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  const handleExtractedText = async (text: string) => {
+    if (currentMode === 'meaning') {
+      alert(`【言葉の意味検索】\n「${text}」の意味を検索・保存します。`);
+    } else if (currentMode === 'kanji') {
+      alert(`【漢字の読み方検索】\n「${text}」の読み方を検索・保存します。`);
+    } else if (currentMode === 'text') {
+      alert(`【文章の抜き取り】\n文章テキストとして保存しました：\n${text}`);
+    }
+  };
 
   // 最新状態を保持するRef（PanResponder内のクロージャ対策）
   const boxRef = useRef(box);
@@ -125,23 +136,33 @@ export default function CameraScreen() {
     );
   }
 
+  // ダミーの文字認識関数（実際の実装に合わせて書き換えます）
+  const recognizeTextFromImage = async (imageUri: string): Promise<string> => {
+    // ここでOCRライブラリやAPIを呼び出します
+    // 今回は挙動を確認するため、3秒後にダミーテキストを返すようにしています
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return "SUCCESS_OCR_TEXT";
+  };
+
   // 撮影処理
   const takePicture = async () => {
-    if (!cameraRef.current||containerSize.width === 0) return;
-    try{
+    if (!cameraRef.current || containerSize.width === 0) return;
+    let croppedPhotoUri: string | null = null;
+    try {
+      //写真撮影
       const photo = await cameraRef.current.takePictureAsync();
-      
+
       // 撮影された実際の画像サイズと、画面の表示サイズから倍率を計算
-      const scaleX=photo.width/containerSize.width;
-      const scaleY=photo.height/containerSize.height;
+      const scaleX = photo.width / containerSize.width;
+      const scaleY = photo.height / containerSize.height;
 
       //画面上のスキャン枠の位置とサイズを実際のが画像サイズに変更
-      const originX=box.left*scaleX;
-      const originY=box.top*scaleY;
+      const originX = box.left * scaleX;
+      const originY = box.top * scaleY;
       const cropWidth = box.width * scaleX;
       const cropHeight = box.height * scaleY;
 
-   　const croppedPhoto = await ImageManipulator.manipulateAsync(
+      const croppedPhoto = await ImageManipulator.manipulateAsync(
         photo.uri,
         [
           {
@@ -155,15 +176,38 @@ export default function CameraScreen() {
         ],
         { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
       );
-         console.log('切り抜き成功！画像URI:', croppedPhoto.uri);
-         alert('枠の中だけを切り抜いて保存しました！');
 
-    }catch(error){
+      //画像保存
+      croppedPhotoUri = croppedPhoto.uri;
+      console.log('切り抜き画像(一時保存):', croppedPhotoUri);
+
+      // 元の全画面写真を削除してメモリを開放
+      await FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => { });
+
+      //切り抜いた画像から文字の抜き出し
+      alert('文字を認識中...');
+      const extractedText = await recognizeTextFromImage(croppedPhotoUri);
+
+      console.log('文字の抜き出しに成功しました！:', extractedText);
+      await handleExtractedText(extractedText);
+
+
+    } catch (error) {
       console.error('切り抜き失敗:', error);
       alert('エラーが発生しました');
+    } finally {
+      //メモリリーク防止のため、撮影直後に一時保存した画像を削除
+      if (croppedPhotoUri) {
+        try {
+          await FileSystem.deleteAsync(croppedPhotoUri, { idempotent: true }).catch(() => { });
+          console.log('切り抜き画像を完全削除');
+        } catch (deleteError) {
+          console.error('画像削除エラー:', deleteError);
+        }
+      }
     }
-      
-    
+
+
   };
 
   return (
@@ -408,6 +452,37 @@ export default function CameraScreen() {
         )}
       </View>
 
+        {/* 💡 コントロール領域（切り替えタブ ＋ 撮影ボタン） */}
+      <View style={styles.controlsContainer} pointerEvents="box-none">
+        {/* モード選択タブ */}
+        <View style={styles.modeSelector}>
+          <TouchableOpacity 
+            style={[styles.modeButton, currentMode === 'meaning' && styles.activeModeButton]} 
+            onPress={() => setCurrenMode('meaning')}
+          >
+            <Text style={[styles.modeText, currentMode === 'meaning' && styles.activeModeText]}>意味検索</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.modeButton, currentMode === 'kanji' && styles.activeModeButton]} 
+            onPress={() => setCurrenMode('kanji')}
+          >
+            <Text style={[styles.modeText, currentMode === 'kanji' && styles.activeModeText]}>漢字の読み</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.modeButton, currentMode === 'text' && styles.activeModeButton]} 
+            onPress={() => setCurrenMode('text')}
+          >
+            <Text style={[styles.modeText, currentMode === 'text' && styles.activeModeText]}>文章抽出</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 撮影ボタン */}
+        <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+          <View style={styles.captureButtonInner} />
+        </TouchableOpacity>
+      </View>
       {/* 撮影ボタン */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
@@ -472,6 +547,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     zIndex: 20,
   },
+
   captureButton: {
     width: 70, height: 70, borderRadius: 35,
     backgroundColor: 'white',
@@ -480,5 +556,38 @@ const styles = StyleSheet.create({
   captureButtonInner: {
     width: 60, height: 60, borderRadius: 30,
     borderWidth: 2, borderColor: 'black',
+  },
+  controlsContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  modeButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+  },
+  activeModeButton: {
+    backgroundColor: '#00E676', // 選択中のモードはネオングリーンにする
+  },
+  modeText: {
+    color: '#aaa',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  activeModeText: {
+    color: 'black', // 選択中は黒文字で見やすく
   },
 });
