@@ -1,8 +1,8 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useMemo, useRef, useState } from 'react';
-import { Button, LayoutChangeEvent, PanResponder, StyleSheet, TouchableOpacity, View,Text } from 'react-native';
+import { Button, LayoutChangeEvent, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -137,12 +137,36 @@ export default function CameraScreen() {
   }
 
   // ダミーの文字認識関数（実際の実装に合わせて書き換えます）
-  const recognizeTextFromImage = async (imageUri: string): Promise<string> => {
+  const recognizeTextFromImage = async (base64str: string): Promise<string> => {
     // ここでOCRライブラリやAPIを呼び出します
+    const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY;
+    const url = `https://vision.googleapis.com/v1/images:annotate?key=${process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY}`;
     // 今回は挙動を確認するため、3秒後にダミーテキストを返すようにしています
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    return "SUCCESS_OCR_TEXT";
-  };
+   const response=await fetch(url,{
+    method:'POST',
+    headers:{'Content-Type': 'application/json'},
+    body:JSON.stringify({
+      requests:[
+        {
+          image:{content: base64str},
+          features: [{ type: 'TEXT_DETECTION' }], // 文字認識（OCR）を指定
+          imageContext: { languageHints: ['ja'] }, // 日本語を優先的に読ませる
+        },
+      ],
+    }),
+   });
+   const json = await response.json();
+  
+  // Googleから返ってきたデータから、読み取れた文章（テキスト）を取り出す
+ const detectedText = json.responses?.[0]?.fullTextAnnotation?.text;
+  if (!detectedText) {
+    throw new Error('文字が検出されませんでした。');
+  }
+
+  return detectedText;
+ };
+
+
 
   // 撮影処理
   const takePicture = async () => {
@@ -180,13 +204,15 @@ export default function CameraScreen() {
       //画像保存
       croppedPhotoUri = croppedPhoto.uri;
       console.log('切り抜き画像(一時保存):', croppedPhotoUri);
+      //画像データをbase64として読み込む
+      const base64Image = await FileSystem.readAsStringAsync(croppedPhoto.uri, { encoding: FileSystem.EncodingType.Base64 });
 
       // 元の全画面写真を削除してメモリを開放
       await FileSystem.deleteAsync(photo.uri, { idempotent: true }).catch(() => { });
 
       //切り抜いた画像から文字の抜き出し
       alert('文字を認識中...');
-      const extractedText = await recognizeTextFromImage(croppedPhotoUri);
+      const extractedText = await recognizeTextFromImage(base64Image);
 
       console.log('文字の抜き出しに成功しました！:', extractedText);
       await handleExtractedText(extractedText);
@@ -483,12 +509,7 @@ export default function CameraScreen() {
           <View style={styles.captureButtonInner} />
         </TouchableOpacity>
       </View>
-      {/* 撮影ボタン */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-          <View style={styles.captureButtonInner} />
-        </TouchableOpacity>
-      </View>
+      
     </View>
   );
 }
