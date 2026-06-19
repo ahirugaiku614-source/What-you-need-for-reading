@@ -27,54 +27,53 @@ export default function CameraScreen() {
     return;
   }
 
-  try{
-     const url = `https://ja.wiktionary.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(cleanedText)}&format=json&origin=*&redirects=1`;
-     const response = await fetch(url);
-     const json = await response.json();
+ try {
 
-       // 検索結果の一番最初（最も一致するもの）を取得
-      const pages = json.query?.pages;
-
-      if (!pages) {
-      alert(`「${cleanedText}」に一致する辞書データが見つかりませんでした。`);
-      return;
+    // Wikipedia REST API のsummaryエンドポイントを使用
+    
+    const url = `https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanedText)}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'MyDictionaryApp/1.0 (contact: example@example.com)' // Wikipedia APIのマナーとしてUser-Agentを設定
       }
-      //ランダムなページAPIキーから中身を取り出す
-      const pageId = Object.keys(pages)[0];
-      const rawExtract = pages[pageId]?.extract;
+    });
 
-      // 該当するページがない、または中身が空の場合
-    if (pageId === '-1' || !rawExtract) {
-      alert(`「${cleanedText}」は辞書に見つかりませんでした。単語のみで撮影してみてください。`);
+    // 該当するページがWikipediaに存在しない場合（404エラーなど）
+    if (!response.ok) {
+      alert(`「${cleanedText}」に一致する記事がWikipediaで見つかりませんでした。別の単語で試してみてください。`);
       return;
     }
-    //不要な文字や改行を消去
-    let cleanExtract = rawExtract.trim();
 
-    //モードごとに表示を切り替え
+    const json = await response.json();
+
+    // プレーンテキストの要約を引き抜き
+    const extract = json.extract;
+
+    if (!extract) {
+      alert(`「${cleanedText}」の要約データを取得できませんでした。`);
+      return;
+    }
+
+    // モードごとに表示を切り替え
     if (currentMode === 'kanji') {
-      // ✍️ 漢字の読み方モード
-      // ウィクショナリーのテキストから「ひらがな」の読み部分を見つける簡易的な処理
-      // （※ページ冒頭の「カタカナ」や「ひらがな」の記述を引っ掛けます）
-      const readingMatch = cleanExtract.match(/（([^）]+)）/) || cleanExtract.match(/【([^】]+)】/);
-      const possibleReading = readingMatch ? readingMatch[1] : 'テキストから読みを特定できませんでした';
+      //  漢字の読み方モード
+      // Wikipediaの概要文の冒頭から読みを推測
+      const readingMatch = extract.match(/（([^）]+)）/) || extract.match(/【([^】]+)】/);
+      const possibleReading = readingMatch ? readingMatch[1] : '概要文から読みを特定できませんでした';
 
-      alert(`✍️ 漢字の読み方結果\n\n【単語】${cleanedText}\n【解説内の推測読み】${possibleReading}\n\n※下の詳細解説も参考にしてください:\n${cleanExtract.substring(0, 100)}...`);
+      alert(`✍️ 漢字の読み方結果\n\n【単語】${cleanedText}\n【推測される読み】${possibleReading}\n\n※下の概要も参考にしてください:\n${extract.substring(0, 150)}...`);
       
     } else if (currentMode === 'meaning') {
-      // 📚 意味検索モード（日本語でドンと表示！）
-      // 文字数が長すぎる場合は、アラートで見やすいように少し短くカットします
-      const displayMeaning = cleanExtract.length > 300 
-        ? cleanExtract.substring(0, 300) + '...（省略）' 
-        : cleanExtract;
-
-      alert(`📚 言葉の意味検索結果\n\n対象：${cleanedText}\n\n${displayMeaning}`);
+      //  意味検索モード
+      alert(`📚 Wikipediaによる言葉の概要\n\n対象：${cleanedText}\n\n${extract}`);
     }
-  }catch(error){
-    console.error('辞書検索エラー:', error);
-    alert('辞書データの取得中にエラーが発生しました。');
+
+  } catch (error) {
+    console.error('Wikipedia REST API検索エラー:', error);
+    alert('Wikipediaデータの取得中にエラーが発生しました。');
   }
-  };
+}
 
   // 最新状態を保持するRef（PanResponder内のクロージャ対策）
   const boxRef = useRef(box);
@@ -253,7 +252,7 @@ export default function CameraScreen() {
             },
           },
         ],
-        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
       );
 
       //画像保存
