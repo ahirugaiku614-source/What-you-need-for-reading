@@ -14,14 +14,66 @@ export default function CameraScreen() {
   // コンテナのサイズ（onLayoutで取得）
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+  //日本語ウィクショナリーAPIを使って、日本語の意味と読みを取得する関数
   const handleExtractedText = async (text: string) => {
-    if (currentMode === 'meaning') {
-      alert(`【言葉の意味検索】\n「${text}」の意味を検索・保存します。`);
-    } else if (currentMode === 'kanji') {
-      alert(`【漢字の読み方検索】\n「${text}」の読み方を検索・保存します。`);
-    } else if (currentMode === 'text') {
-      alert(`【文章の抜き取り】\n文章テキストとして保存しました：\n${text}`);
+  // 空白や改行をキレイにする
+  const cleanedText = text.replace(/[\r\n\s\u200B-\u200D\uFEFF]+/g, '').trim();
+
+  console.log('--- 辞書に送る直前の文字はこれです：', `"${cleanedText}"`);
+
+  // 文章抽出モードの場合は、検索せずにそのまま終了
+  if (currentMode === 'text') {
+    alert(`【文章の抜き取り】\n${cleanedText}`);
+    return;
+  }
+
+  try{
+     const url = `https://ja.wiktionary.org/w/api.php?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(cleanedText)}&format=json&origin=*&redirects=1`;
+     const response = await fetch(url);
+     const json = await response.json();
+
+       // 検索結果の一番最初（最も一致するもの）を取得
+      const pages = json.query?.pages;
+
+      if (!pages) {
+      alert(`「${cleanedText}」に一致する辞書データが見つかりませんでした。`);
+      return;
+      }
+      //ランダムなページAPIキーから中身を取り出す
+      const pageId = Object.keys(pages)[0];
+      const rawExtract = pages[pageId]?.extract;
+
+      // 該当するページがない、または中身が空の場合
+    if (pageId === '-1' || !rawExtract) {
+      alert(`「${cleanedText}」は辞書に見つかりませんでした。単語のみで撮影してみてください。`);
+      return;
     }
+    //不要な文字や改行を消去
+    let cleanExtract = rawExtract.trim();
+
+    //モードごとに表示を切り替え
+    if (currentMode === 'kanji') {
+      // ✍️ 漢字の読み方モード
+      // ウィクショナリーのテキストから「ひらがな」の読み部分を見つける簡易的な処理
+      // （※ページ冒頭の「カタカナ」や「ひらがな」の記述を引っ掛けます）
+      const readingMatch = cleanExtract.match(/（([^）]+)）/) || cleanExtract.match(/【([^】]+)】/);
+      const possibleReading = readingMatch ? readingMatch[1] : 'テキストから読みを特定できませんでした';
+
+      alert(`✍️ 漢字の読み方結果\n\n【単語】${cleanedText}\n【解説内の推測読み】${possibleReading}\n\n※下の詳細解説も参考にしてください:\n${cleanExtract.substring(0, 100)}...`);
+      
+    } else if (currentMode === 'meaning') {
+      // 📚 意味検索モード（日本語でドンと表示！）
+      // 文字数が長すぎる場合は、アラートで見やすいように少し短くカットします
+      const displayMeaning = cleanExtract.length > 300 
+        ? cleanExtract.substring(0, 300) + '...（省略）' 
+        : cleanExtract;
+
+      alert(`📚 言葉の意味検索結果\n\n対象：${cleanedText}\n\n${displayMeaning}`);
+    }
+  }catch(error){
+    console.error('辞書検索エラー:', error);
+    alert('辞書データの取得中にエラーが発生しました。');
+  }
   };
 
   // 最新状態を保持するRef（PanResponder内のクロージャ対策）
@@ -157,7 +209,7 @@ export default function CameraScreen() {
    });
    const json = await response.json();
   
-  // Googleから返ってきたデータから、読み取れた文章（テキスト）を取り出す
+  // Googleから返ってきたデータから、読み取れた文章を取り出す
  const detectedText = json.responses?.[0]?.fullTextAnnotation?.text;
   if (!detectedText) {
     throw new Error('文字が検出されませんでした。');
