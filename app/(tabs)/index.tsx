@@ -136,12 +136,12 @@ export default function CameraScreen() {
     );
   }
 
-  // ダミーの文字認識関数（実際の実装に合わせて書き換えます）
+  //文字認識関数
   const recognizeTextFromImage = async (base64str: string): Promise<string> => {
-    // ここでOCRライブラリやAPIを呼び出します
+    // ここでOCRライブラリやAPIを呼び出す
     const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY;
     const url = `https://vision.googleapis.com/v1/images:annotate?key=${process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY}`;
-    // 今回は挙動を確認するため、3秒後にダミーテキストを返すようにしています
+    
    const response=await fetch(url,{
     method:'POST',
     headers:{'Content-Type': 'application/json'},
@@ -175,12 +175,15 @@ export default function CameraScreen() {
     try {
       //写真撮影
       const photo = await cameraRef.current.takePictureAsync();
+      //写真そのもののサイズを取得
+      const photoWidth = photo.width;
+      const photoHeight = photo.height;
 
       // 撮影された実際の画像サイズと、画面の表示サイズから倍率を計算
-      const scaleX = photo.width / containerSize.width;
-      const scaleY = photo.height / containerSize.height;
+      const scaleX = photoWidth / containerSize.width;
+　　   const scaleY = photoHeight / containerSize.height;
 
-      //画面上のスキャン枠の位置とサイズを実際のが画像サイズに変更
+      //画面上のスキャン枠の位置とサイズを実際の画像サイズに変更
       const originX = box.left * scaleX;
       const originY = box.top * scaleY;
       const cropWidth = box.width * scaleX;
