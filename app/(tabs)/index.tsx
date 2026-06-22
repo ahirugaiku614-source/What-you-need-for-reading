@@ -3,6 +3,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useMemo, useRef, useState } from 'react';
 import { Button, LayoutChangeEvent, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -14,17 +16,38 @@ export default function CameraScreen() {
   // コンテナのサイズ（onLayoutで取得）
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  //日本語ウィクショナリーAPIを使って、日本語の意味と読みを取得する関数
+  //Wikipedia REST APIを使って、日本語の意味と読みを取得する関数
   const handleExtractedText = async (text: string) => {
   // 空白や改行をキレイにする
   const cleanedText = text.replace(/[\r\n\s\u200B-\u200D\uFEFF]+/g, '').trim();
 
-  console.log('--- 辞書に送る直前の文字はこれです：', `"${cleanedText}"`);
+  console.log(' 辞書に送る直前の文字はこれです：', `"${cleanedText}"`);
 
   // 文章抽出モードの場合は、検索せずにそのまま終了
   if (currentMode === 'text') {
-    alert(`【文章の抜き取り】\n${cleanedText}`);
-    return;
+    try {
+      const newMemo = {
+        id: Date.now().toString(),
+        word: "（文章抽出）", // 画面で見分けるためのラベル
+        reading: "---",       // 文章なので読み方はなし
+        meaning: cleanedText,  // 抜き出した文章をセット
+        createdAt: new Date().toLocaleDateString('ja-JP'),
+      };
+
+      // 端末の既存データを読み込んで合体
+      const existingMemosJson = await AsyncStorage.getItem('dictionary_memos');
+      const existingMemos = existingMemosJson ? JSON.parse(existingMemosJson) : [];
+      const updatedMemos = [newMemo, ...existingMemos];
+
+      await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
+
+      alert(`【文章の抜き取り】\nexplore画面に保存しました！\n\n${cleanedText}`);
+      return;
+    } catch (error) {
+      console.error('保存エラー:', error);
+      alert('文章の保存に失敗しました。');
+      return;
+    }
   }
 
  try {
@@ -54,19 +77,39 @@ export default function CameraScreen() {
       alert(`「${cleanedText}」の要約データを取得できませんでした。`);
       return;
     }
-
+    let possibleReading="---"
     // モードごとに表示を切り替え
     if (currentMode === 'kanji') {
       //  漢字の読み方モード
       // Wikipediaの概要文の冒頭から読みを推測
       const readingMatch = extract.match(/（([^）]+)）/) || extract.match(/【([^】]+)】/);
-      const possibleReading = readingMatch ? readingMatch[1] : '概要文から読みを特定できませんでした';
+      possibleReading = readingMatch ? readingMatch[1] : '概要文から読みを特定できませんでした';
 
-      alert(`✍️ 漢字の読み方結果\n\n【単語】${cleanedText}\n【推測される読み】${possibleReading}\n\n※下の概要も参考にしてください:\n${extract.substring(0, 150)}...`);
+      alert(`字の読み方結果\n\n【単語】${cleanedText}\n【推測される読み】${possibleReading}\n\n※下の概要も参考にしてください:\n${extract.substring(0, 150)}...`);
       
     } else if (currentMode === 'meaning') {
       //  意味検索モード
-      alert(`📚 Wikipediaによる言葉の概要\n\n対象：${cleanedText}\n\n${extract}`);
+      alert(`Wikipediaによる言葉の概要\n\n対象：${cleanedText}\n\n${extract}`);
+    }
+
+    const newMemo={
+      id:Date.now().toString(), //消去するときようのID
+      word:cleanedText,
+      reading:possibleReading,
+      mening:extract,
+      createdAt: new Date().toLocaleDateString('ja-JP'),
+    };
+
+    const existingMemosJson = await AsyncStorage.getItem('dictionary_memos');
+    const existingMemos = existingMemosJson ? JSON.parse(existingMemosJson) : [];
+    const updatedMemos = [newMemo, ...existingMemos]; // 新しいものを一番上に
+
+    await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
+
+    if (currentMode === 'kanji') {
+      alert(`✍️ 漢字の読み方（explore画面に保存しました）\n\n【単語】${cleanedText}\n【読み】${possibleReading}`);
+    } else if (currentMode === 'meaning') {
+      alert(`📚 言葉の意味（explore画面に保存しました）\n\n対象：${cleanedText}\n\n${extract}`);
     }
 
   } catch (error) {
