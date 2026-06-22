@@ -1,9 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import React, { useMemo, useRef, useState } from 'react';
 import { Button, LayoutChangeEvent, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function CameraScreen() {
@@ -12,7 +12,7 @@ export default function CameraScreen() {
   // 現在のモード（meanign=単語帳用、kanji=漢字用、text=メモ用）
   const [currentMode, setCurrenMode] = useState<'meaning' | 'kanji' | 'text'>('text');
   // スキャン枠の座標とサイズ
-  const [box, setBox] = useState({ top: 100, left: 100, width: 150, height: 150 });
+ const [box, setBox] = useState({ top: 150, left: 150, width: 50, height: 50 });
   // コンテナのサイズ（onLayoutで取得）
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
@@ -93,10 +93,10 @@ export default function CameraScreen() {
     }
 
     const newMemo={
-      id:Date.now().toString(), //消去するときようのID
+      id:Date.now().toString(), //消去するとき用のID
       word:cleanedText,
       reading:possibleReading,
-      mening:extract,
+      meaning:extract,
       createdAt: new Date().toLocaleDateString('ja-JP'),
     };
 
@@ -132,8 +132,8 @@ export default function CameraScreen() {
     const { width, height } = event.nativeEvent.layout;
     setContainerSize({ width, height });
     if (!isInitialized.current && width > 0 && height > 0) {
-      const boxWidth = 200;
-      const boxHeight = 200;
+      const boxWidth = 60;
+      const boxHeight = 60;
       setBox({
         top: (height - boxHeight) / 2,
         left: (width - boxWidth) / 2,
