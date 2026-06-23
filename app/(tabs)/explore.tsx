@@ -54,14 +54,14 @@ export default function ExploreScreen() {
     }
   }, [isFocused]);
 
-  // 【ここがポイント】選ばれているタブに応じて、表示するメモを仕分ける（フィルター処理）
+  // 選ばれているタブに応じて、表示するメモを仕分ける（フィルター処理）
   const getFilteredMemos = () => {
     if (activeTab === 'dictionary') {
-      // 単語検索・漢字読み方モードで保存したもの（wordが「（文章抽出）」ではないもの）
+      // 単語検索・漢字読み方モードで保存したもの
       return memos.filter(item => item.word !== '（文章抽出）');
     }
     if (activeTab === 'text') {
-      // 文章抽出モードで保存したもの（wordが「（文章抽出）」のもの）
+      // 文章抽出モードで保存したもの
       return memos.filter(item => item.word === '（文章抽出）');
     }
     return memos; // 'all' の場合はすべて表示

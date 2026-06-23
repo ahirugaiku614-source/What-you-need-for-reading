@@ -85,8 +85,15 @@ export default function CameraScreen() {
       //  漢字の読み方モード
       // Wikipediaの概要文の冒頭から読みを推測
       const readingMatch = extract.match(/（([^）]+)）/) || extract.match(/【([^】]+)】/);
-      possibleReading = readingMatch ? readingMatch[1] : '概要文から読みを特定できませんでした';
 
+      if(readingMatch){
+        possibleReading = readingMatch[1];
+      }
+      else{
+        await callGeminiFallback(cleanedText);
+        return;
+      }
+   
       alert(`字の読み方結果\n\n【単語】${cleanedText}\n【推測される読み】${possibleReading}\n\n※下の概要も参考にしてください:\n${extract.substring(0, 150)}...`);
       
     } else if (currentMode === 'meaning') {
@@ -127,10 +134,10 @@ const callGeminiFallback=async(cleanedText:String)=>{
 
   let prompt="";
   if(currentMode=='meaning'){
-    prompt='あなたは優秀な日本語辞書です。「${cleandText}」という言葉の意味や概要を短く分かりやすくまとめて下さい。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。'
+    prompt=`あなたは優秀な日本語辞書です。「${cleanedText}」という言葉の意味や概要を短く分かりやすくまとめて下さい。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。`
   }
   else if(currentMode=='kanji'){
-    prompt='「${cleandText}」という漢字の読み仮名をひらがなのみで答えてください。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。'
+    prompt=`「${cleanedText}」という漢字の読み仮名をひらがなのみで答えてください。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。`
   }
 
   try{
@@ -181,11 +188,11 @@ const callGeminiFallback=async(cleanedText:String)=>{
 
   }catch(geminiError){
     console.error('Gemini API 実行エラー:', geminiError);
-    alert('AI辞書の検索中にエラーが発生しました。');
+    alert('AIの検索中にエラーが発生しました。');
   }
 }
 
-  // 最新状態を保持するRef（PanResponder内のクロージャ対策）
+  // 最新状態を保持するRef
   const boxRef = useRef(box);
   boxRef.current = box;
   const containerSizeRef = useRef(containerSize);
@@ -342,7 +349,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
 
       // 撮影された実際の画像サイズと、画面の表示サイズから倍率を計算
       const scaleX = photoWidth / containerSize.width;
-　　   const scaleY = photoHeight / containerSize.height;
+　　  const scaleY = photoHeight / containerSize.height;
 
       //画面上のスキャン枠の位置とサイズを実際の画像サイズに変更
       const originX = box.left * scaleX;
