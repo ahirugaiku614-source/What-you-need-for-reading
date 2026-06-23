@@ -16,6 +16,9 @@ export default function CameraScreen() {
   // コンテナのサイズ（onLayoutで取得）
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
+  //メッセージボードを表示するかどうかの管理（初期値は true = 表示する）
+  const [showGuide, setShowGuide] = useState(true);
+
   //Wikipedia REST APIを使って、日本語の意味と読みを取得する関数
   const handleExtractedText = async (text: string) => {
   // 空白や改行をキレイにする
@@ -410,6 +413,19 @@ const callGeminiFallback=async(cleanedText:String)=>{
   return (
     <View style={styles.container}>
       <CameraView style={StyleSheet.absoluteFill} facing="back" ref={cameraRef} />
+      {showGuide && (
+        <View style={styles.guideContainer}>
+          <Text style={styles.guideText}>
+            カメラ枠の中に抜き取りたい文章、または意味・読みを知りたい文字を入れて撮影してください。
+          </Text>
+          <TouchableOpacity 
+            style={styles.closeButton} 
+            onPress={() => setShowGuide(false)}
+          >
+            <Text style={styles.closeButtonText}>×</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* スキャン範囲のマスク */}
       <View style={styles.maskContainer} onLayout={onContainerLayout}>
@@ -781,5 +797,44 @@ const styles = StyleSheet.create({
   },
   activeModeText: {
     color: 'black', // 選択中は黒文字で見やすく
+  },
+  guideContainer: {
+    position: 'absolute',
+    top: 60,                // 画面上部からの位置（ステータスバーを避ける高さ）
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)', // 黒の65%半透明（薄く透ける背景）
+    borderRadius: 12,       // 角丸
+    paddingVertical: 12,
+    paddingHorizontal: 40,  // バツボタンと被らないように右側広め
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 30,             // スキャン枠よりも手前に表示
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  guideText: {
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -15,         // 中央配置の調整
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#aaaaaa',       // 少し薄いグレーのバツ印
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
