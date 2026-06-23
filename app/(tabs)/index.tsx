@@ -64,7 +64,8 @@ export default function CameraScreen() {
 
     // 該当するページがWikipediaに存在しない場合（404エラーなど）
     if (!response.ok) {
-      alert(`「${cleanedText}」に一致する記事がWikipediaで見つかりませんでした。別の単語で試してみてください。`);
+      alert(`「${cleanedText}」に一致する記事がWikipediaで見つかりませんでした。GeminiAPIに切り替えます`);
+      await callGeminiFallback(cleanedText);
       return;
     }
 
@@ -74,7 +75,8 @@ export default function CameraScreen() {
     const extract = json.extract;
 
     if (!extract) {
-      alert(`「${cleanedText}」の要約データを取得できませんでした。`);
+      alert(`「${cleanedText}」の要約データを取得できませんでした。GeminiAPIに切り替えます`);
+      await callGeminiFallback(cleanedText);
       return;
     }
     let possibleReading="---"
@@ -107,14 +109,79 @@ export default function CameraScreen() {
     await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
 
     if (currentMode === 'kanji') {
-      alert(`✍️ 漢字の読み方（explore画面に保存しました）\n\n【単語】${cleanedText}\n【読み】${possibleReading}`);
+      alert(`✍️ 漢字の読み方（Memo画面に保存しました）\n\n【単語】${cleanedText}\n【読み】${possibleReading}`);
     } else if (currentMode === 'meaning') {
-      alert(`📚 言葉の意味（explore画面に保存しました）\n\n対象：${cleanedText}\n\n${extract}`);
+      alert(`📚 言葉の意味（Memo画面に保存しました）\n\n対象：${cleanedText}\n\n${extract}`);
     }
 
   } catch (error) {
     console.error('Wikipedia REST API検索エラー:', error);
     alert('Wikipediaデータの取得中にエラーが発生しました。');
+  }
+}
+
+//Wikiの方でデータが見つからなかった際のバックアップ
+const callGeminiFallback=async(cleanedText:String)=>{
+  console.log("Wikiにデータが無かったため、GeminiAPIを呼び出し")
+  const GEMINI_KEY=process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+
+  let prompt="";
+  if(currentMode=='meaning'){
+    prompt='あなたは優秀な日本語辞書です。「${cleandText}」という言葉の意味や概要を短く分かりやすくまとめて下さい。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。'
+  }
+  else if(currentMode=='kanji'){
+    prompt='「${cleandText}」という漢字の読み仮名をひらがなのみで答えてください。前置き（「はい、お答えします」など）や見出し記号は一切含めず、一つの説明文章として出力してください。'
+  }
+
+  try{
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+    const geminiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+    const geminiJson = await geminiResponse.json();
+    const aiResponse = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
+    if (!aiResponse) {
+      alert(`「${cleanedText}」のデータを取得できませんでした。`);
+      return;
+    }
+
+    // 保存用データの仕分け
+    let possibleReading = '---';
+    let finalMeaning = '';
+
+    if (currentMode === 'meaning') {
+      finalMeaning = aiResponse; // Geminiが作った分かりやすい意味
+    } else if (currentMode === 'kanji') {
+      possibleReading = aiResponse; // Geminiが作ったひらがなの読み方
+      finalMeaning = '（AI読み方モードで取得されました）';
+    }
+
+    //AsyncStorageにデータを保存する
+    const newMemo = {
+      id: Date.now().toString(),
+      word: cleanedText,
+      reading: possibleReading,
+      meaning: finalMeaning,
+      createdAt: new Date().toLocaleDateString('ja-JP'),
+    };
+
+    const existingMemosJson = await AsyncStorage.getItem('dictionary_memos');
+    const existingMemos = existingMemosJson ? JSON.parse(existingMemosJson) : [];
+    await AsyncStorage.setItem('dictionary_memos', JSON.stringify([newMemo, ...existingMemos]));
+
+     if (currentMode === 'kanji') {
+      alert(`✍️ 漢字の読み方（Memo画面に保存しました）\n\n【単語】${cleanedText}\n【読み】${possibleReading}`);
+    } else if (currentMode === 'meaning') {
+      alert(`📚 言葉の意味（Memo画面に保存しました）\n\n対象：${cleanedText}\n\n${finalMeaning}`);
+    }
+
+  }catch(geminiError){
+    console.error('Gemini API 実行エラー:', geminiError);
+    alert('AI辞書の検索中にエラーが発生しました。');
   }
 }
 
