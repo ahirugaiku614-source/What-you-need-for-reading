@@ -363,7 +363,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
   if (!permission) return <View />;
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centerContainer}>
         <Button title="カメラを許可" onPress={requestPermission} />
       </View>
     );
@@ -778,7 +778,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
                 styles.sliderThumb, 
                 { left: `${(zoom / 0.3) * 100}%` }
               ]}
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              hitSlop={{ top: 40, bottom: 40, left: 40, right: 40 }}
               pointerEvents="none" //つまみ自身がタッチイベントを吸い取らないようにしてブレを防ぐ
             />
           </View>
@@ -796,7 +796,17 @@ const callGeminiFallback=async(cleanedText:String)=>{
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+ container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+
+  centerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center', // 上下の中央寄せ
+    alignItems: 'center',     // 左右の中央寄せ
+  },
   maskContainer: { flex: 1, backgroundColor: 'transparent' },
 
   // マスク（半透明）
