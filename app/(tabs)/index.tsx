@@ -474,7 +474,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
 
   return (
     <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFill} facing="back" ref={cameraRef} />
+      <CameraView style={StyleSheet.absoluteFill} facing="back" ref={cameraRef} zoom={zoom}/>
       {showGuide && (
         <View style={styles.guideContainer}>
           <Text style={styles.guideText}>
@@ -727,7 +727,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
         )}
       </View>
 
-        {/* 💡 コントロール領域（切り替えタブ ＋ 撮影ボタン） */}
+        {/* コントロール領域（切り替えタブ ＋ 撮影ボタン） */}
       <View style={styles.controlsContainer} pointerEvents="box-none">
         {/* モード選択タブ */}
         <View style={styles.modeSelector}>
@@ -751,6 +751,38 @@ const callGeminiFallback=async(cleanedText:String)=>{
           >
             <Text style={[styles.modeText, currentMode === 'text' && styles.activeModeText]}>文章抽出</Text>
           </TouchableOpacity>
+        </View>
+        {/*カメラ倍率変更スライドバー*/}
+　　　　　<View style={styles.sliderWrapper}>
+          <Text style={styles.sliderLabel}>🔍 1x</Text>
+          <View 
+            style={styles.sliderContainer}
+            // スライダー全体の領域でタッチを感知するように親要素に設定
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderMove={(e) => {
+              //sliderContainerの左端からの位置を取得
+              const touchX = e.nativeEvent.locationX;
+              // 160px の幅に対して、どこに指があるかを 0 〜 1 で計算
+              const progress = Math.max(0, Math.min(1, touchX / 160));
+              // 0 から 0.3 の間でズームを滑らかに変化
+              setZoom(progress * 0.3);
+            }}
+          >
+            {/* スライダーのベースの線 */}
+            <View style={styles.sliderLine} pointerEvents="none" />
+            
+            {/* 動くつまみ */}
+            <View 
+              style={[
+                styles.sliderThumb, 
+                { left: `${(zoom / 0.3) * 100}%` }
+              ]}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              pointerEvents="none" //つまみ自身がタッチイベントを吸い取らないようにしてブレを防ぐ
+            />
+          </View>
+          <Text style={styles.sliderLabel}>🔎 3x</Text>
         </View>
 
         {/* 撮影ボタン */}
@@ -898,5 +930,50 @@ const styles = StyleSheet.create({
     color: '#aaaaaa',       // 少し薄いグレーのバツ印
     fontSize: 24,
     fontWeight: 'bold',
+  },
+
+  sliderWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 15, // 撮影ボタンとの間隔
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  sliderLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    width: 35,
+    textAlign: 'center',
+  },
+  sliderContainer: {
+    width: 160, // スライダーの横幅
+    height: 30, // タッチしやすいように縦幅を高めにする
+    justifyContent: 'center',
+    marginHorizontal: 10,
+    position: 'relative',
+  },
+  sliderLine: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)', // 薄い白の線
+    borderRadius: 2,
+    width: '100%',
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#00E676', // 枠線と同じ視認性の高いネオングリーン
+    marginLeft: -10, // つまみの中心を合わせるための調整
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });
