@@ -414,7 +414,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
 
       // 撮影された実際の画像サイズと、画面の表示サイズから倍率を計算
       const scaleX = photoWidth / containerSize.width;
-　　  const scaleY = photoHeight / containerSize.height;
+      const scaleY = photoHeight / containerSize.height;
 
       //画面上のスキャン枠の位置とサイズを実際の画像サイズに変更
       const originX = box.left * scaleX;
@@ -753,7 +753,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
           </TouchableOpacity>
         </View>
         {/*カメラ倍率変更スライドバー*/}
-　　　　　<View style={styles.sliderWrapper}>
+        <View style={styles.sliderWrapper}>
           <Text style={styles.sliderLabel}>🔍 1x</Text>
           <View 
             style={styles.sliderContainer}
@@ -779,7 +779,7 @@ const callGeminiFallback=async(cleanedText:String)=>{
                 { left: `${(zoom / 0.3) * 100}%` }
               ]}
               hitSlop={{ top: 40, bottom: 40, left: 40, right: 40 }}
-              pointerEvents="none" //つまみ自身がタッチイベントを吸い取らないようにしてブレを防ぐ
+              pointerEvents="none" //つまみ自身がタッチイベントを吸い取らないようにしてブレを防群
             />
           </View>
           <Text style={styles.sliderLabel}>🔎 3x</Text>

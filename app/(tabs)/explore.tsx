@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
 
 interface MemoItem {
   id: string;
@@ -9,6 +9,7 @@ interface MemoItem {
   reading: string;
   meaning: string;
   createdAt: string;
+  tags?: string[]; // タグ保存用の配列
 }
 
 // 画面切り替え用のタブの型
@@ -16,8 +17,11 @@ type FilterTab = 'all' | 'dictionary' | 'text';
 
 export default function ExploreScreen() {
   const [memos, setMemos] = useState<MemoItem[]>([]);
-  // 現在どのタブが選ばれているかを管理する状態（初期値は 'all'）
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null); // 選択中の検索タグ
+  const [inputText, setInputText] = useState(''); // タグ追加用の入力テキスト
+  const [activeMemoId, setActiveMemoId] = useState<string | null>(null); // タグ編集中のメモID
+  
   const isFocused = useIsFocused();
 
   // 端末からメモを読み込む
@@ -25,7 +29,13 @@ export default function ExploreScreen() {
     try {
       const savedMemos = await AsyncStorage.getItem('dictionary_memos');
       if (savedMemos) {
-        setMemos(JSON.parse(savedMemos));
+        const parsed: MemoItem[] = JSON.parse(savedMemos);
+        // 過去のタグがない古いデータにも空配列を入れて安全にする
+        const updated = parsed.map(item => ({
+          ...item,
+          tags: item.tags || []
+        }));
+        setMemos(updated);
       }
     } catch (error) {
       console.error('メモの読み込みに失敗しました:', error);
@@ -48,23 +58,79 @@ export default function ExploreScreen() {
     ]);
   };
 
+  // タグを追加する関数
+  const addTag = async (memoId: string) => {
+    if (!inputText.trim()) return;
+    const newTag = inputText.trim();
+
+    const updatedMemos = memos.map((item) => {
+      if (item.id === memoId) {
+        const currentTags = item.tags || [];
+        if (currentTags.includes(newTag)) {
+          Alert.alert('通知', 'そのタグは既に登録されています。');
+          return item;
+        }
+        return { ...item, tags: [...currentTags, newTag] };
+      }
+      return item;
+    });
+
+    setMemos(updatedMemos);
+    await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
+    setInputText('');
+    setActiveMemoId(null);
+  };
+
+  // タグを削除する関数
+  const removeTag = async (memoId: string, tagToRemove: string) => {
+    const updatedMemos = memos.map((item) => {
+      if (item.id === memoId) {
+        return {
+          ...item,
+          tags: (item.tags || []).filter((t) => t !== tagToRemove),
+        };
+      }
+      return item;
+    });
+
+    setMemos(updatedMemos);
+    await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
+  };
+
   useEffect(() => {
     if (isFocused) {
       loadMemos();
     }
   }, [isFocused]);
 
-  // 選ばれているタブに応じて、表示するメモを仕分ける（フィルター処理）
+  // 全データから存在するすべてのタグを重複なく抽出（タグ検索バー用）
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    memos.forEach((item) => {
+      if (item.tags) {
+        item.tags.forEach((tag) => tagsSet.add(tag));
+      }
+    });
+    return Array.from(tagsSet);
+  }, [memos]);
+
+  // 選ばれているタブ ＆ タグに応じて、表示するメモを仕分ける（フィルター処理）
   const getFilteredMemos = () => {
+    let result = memos;
+
+    //  上部タブの切り替えフィルター
     if (activeTab === 'dictionary') {
-      // 単語検索・漢字読み方モードで保存したもの
-      return memos.filter(item => item.word !== '（文章抽出）');
+      result = result.filter(item => item.word !== '（文章抽出）');
+    } else if (activeTab === 'text') {
+      result = result.filter(item => item.word === '（文章抽出）');
     }
-    if (activeTab === 'text') {
-      // 文章抽出モードで保存したもの
-      return memos.filter(item => item.word === '（文章抽出）');
+
+    //タグ検索のフィルター（選択されている場合）
+    if (selectedTag) {
+      result = result.filter(item => item.tags && item.tags.includes(selectedTag));
     }
-    return memos; // 'all' の場合はすべて表示
+
+    return result;
   };
 
   // カード（1マス）のレイアウト
@@ -74,7 +140,6 @@ export default function ExploreScreen() {
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          {/* 文章か単語かでバッジの色や文字を変える */}
           <View style={[styles.badge, isTextMode ? styles.badgeText : styles.badgeDict]}>
             <Text style={styles.badgeLabel}>{isTextMode ? '文章クリップ' : '辞書検索'}</Text>
           </View>
@@ -84,7 +149,6 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 文章抽出ではない場合のみ「元の文字」と「読み方」を表示する */}
         {!isTextMode && (
           <>
             <View style={styles.section}>
@@ -99,10 +163,46 @@ export default function ExploreScreen() {
           </>
         )}
 
-        {/* 意味・中身の表示 */}
         <View style={styles.section}>
           <Text style={styles.label}>{isTextMode ? '【抜き出した文章】' : '【意味・概要】'}</Text>
           <Text style={styles.meaningText}>{item.meaning}</Text>
+        </View>
+
+        {/*タグ表示・編集エリアを追加 */}
+        <View style={styles.tagSection}>
+          <View style={styles.tagContainer}>
+            {(item.tags || []).map((tag) => (
+              <View key={tag} style={styles.tagBadge}>
+                <Text style={styles.tagText}>#{tag}</Text>
+                <TouchableOpacity onPress={() => removeTag(item.id, tag)} style={styles.deleteTagButton}>
+                  <Text style={styles.deleteTagButtonText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {activeMemoId !== item.id ? (
+              <TouchableOpacity style={styles.addTagButton} onPress={() => setActiveMemoId(item.id)}>
+                <Text style={styles.addTagButtonText}>＋ タグ追加</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.tagInputRow}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="タグ名"
+                  placeholderTextColor="#999"
+                  value={inputText}
+                  onChangeText={setInputText}
+                  autoFocus
+                />
+                <TouchableOpacity style={styles.saveTagButton} onPress={() => addTag(item.id)}>
+                  <Text style={styles.saveTagButtonText}>追加</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelTagButton} onPress={() => { setActiveMemoId(null); setInputText(''); }}>
+                  <Text style={styles.cancelTagButtonText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -112,34 +212,59 @@ export default function ExploreScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>保存された履歴・メモ</Text>
 
-      
+      {/* 元々のタブメニュー */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'all' && styles.activeTabButton]} 
-          onPress={() => setActiveTab('all')}
+          onPress={() => { setActiveTab('all'); setSelectedTag(null); }}
         >
           <Text style={[styles.tabButtonText, activeTab === 'all' && styles.activeTabButtonText]}>すべて</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'dictionary' && styles.activeTabButton]} 
-          onPress={() => setActiveTab('dictionary')}
+          onPress={() => { setActiveTab('dictionary'); setSelectedTag(null); }}
         >
           <Text style={[styles.tabButtonText, activeTab === 'dictionary' && styles.activeTabButtonText]}>辞書・漢字</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={[styles.tabButton, activeTab === 'text' && styles.activeTabButton]} 
-          onPress={() => setActiveTab('text')}
+          onPress={() => { setActiveTab('text'); setSelectedTag(null); }}
         >
           <Text style={[styles.tabButtonText, activeTab === 'text' && styles.activeTabButtonText]}>文章抽出</Text>
         </TouchableOpacity>
       </View>
 
+      {/* タグ絞り込み検索バー */}
+      {allTags.length > 0 && (
+        <View style={styles.searchTagSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagCarousel}>
+            <TouchableOpacity
+              style={[styles.filterTagButton, !selectedTag && styles.activeFilterTag]}
+              onPress={() => setSelectedTag(null)}
+            >
+              <Text style={[styles.filterTagText, !selectedTag && styles.activeFilterTagText]}>すべて表示</Text>
+            </TouchableOpacity>
+            {allTags.map((tag) => (
+              <TouchableOpacity
+                key={tag}
+                style={[styles.filterTagButton, selectedTag === tag && styles.activeFilterTag]}
+                onPress={() => setSelectedTag(tag)}
+              >
+                <Text style={[styles.filterTagText, selectedTag === tag && styles.activeFilterTagText]}>#{tag}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* フィルターをかけた後のリストを表示 */}
       {getFilteredMemos().length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>このカテゴリーの履歴は{"\n"}まだありません。</Text>
+          <Text style={styles.emptyText}>
+            {selectedTag ? `「#${selectedTag}」の履歴は\nまだありません。` : 'このカテゴリーの履歴は\nまだありません。'}
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -166,7 +291,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#333',
   },
-  /*タブバー全体のコンテナ */
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#eee',
@@ -175,14 +299,12 @@ const styles = StyleSheet.create({
     padding: 3,
     marginBottom: 10,
   },
-  /*通常のタブボタン */
   tabButton: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
     borderRadius: 6,
   },
-  /*選択されているアクティブなタブボタン */
   activeTabButton: {
     backgroundColor: '#fff',
     shadowColor: '#000',
@@ -197,8 +319,39 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   activeTabButtonText: {
-    color: '#007aff', // アクティブな時は青文字に
+    color: '#007aff',
   },
+  
+  /* ★ 追加: タグ検索バー関連のスタイル */
+  searchTagSection: {
+    paddingHorizontal: 15,
+    marginBottom: 10,
+  },
+  tagCarousel: {
+    flexDirection: 'row',
+  },
+  filterTagButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  activeFilterTag: {
+    backgroundColor: '#007aff',
+    borderColor: '#007aff',
+  },
+  filterTagText: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeFilterTagText: {
+    color: '#fff',
+  },
+
   listContainer: {
     padding: 15,
     paddingTop: 5,
@@ -223,7 +376,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     marginBottom: 12,
   },
-  /*種別がすぐわかるバッジスタリイング */
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -280,6 +432,102 @@ const styles = StyleSheet.create({
     color: '#555',
     lineHeight: 20,
   },
+
+  /* ★ 追加: 各カード内タグ機能のスタイル */
+  tagSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f5',
+    paddingTop: 10,
+    marginTop: 5,
+  },
+  tagContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  tagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f4f8',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  tagText: {
+    color: '#007aff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  deleteTagButton: {
+    marginLeft: 6,
+    backgroundColor: '#d0d7de',
+    borderRadius: 8,
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteTagButtonText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    lineHeight: 12,
+  },
+  addTagButton: {
+    backgroundColor: '#eee',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  addTagButtonText: {
+    color: '#555',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#fff',
+    color: '#333',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontSize: 12,
+    width: 90,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  saveTagButton: {
+    backgroundColor: '#007aff',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginRight: 4,
+  },
+  saveTagButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  cancelTagButton: {
+    backgroundColor: '#eee',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  cancelTagButtonText: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
