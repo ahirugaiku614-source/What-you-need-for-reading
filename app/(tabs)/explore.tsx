@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
-import React, { useEffect, useState, useMemo } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
+import { router } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 interface MemoItem {
   id: string;
@@ -168,7 +170,7 @@ export default function ExploreScreen() {
           <Text style={styles.meaningText}>{item.meaning}</Text>
         </View>
 
-        {/*タグ表示・編集エリアを追加 */}
+        {/*タグ表示・編集エリア */}
         <View style={styles.tagSection}>
           <View style={styles.tagContainer}>
             {(item.tags || []).map((tag) => (
@@ -211,6 +213,12 @@ export default function ExploreScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>保存された履歴・メモ</Text>
+      <View style={styles.header}>
+              <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
+                <Ionicons name="chevron-back" size={15} color="#1A365D" />
+                <Text style={styles.backButtonText}>ホーム</Text>
+              </TouchableOpacity>
+            </View>
 
       {/* 元々のタブメニュー */}
       <View style={styles.tabContainer}>
@@ -540,4 +548,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+   header:{
+    position: 'absolute',    //映像の上に浮かせる
+    top: 48,                 // スマホ上部のステータスバーを避ける
+    left: 5,
+    zIndex: 40,              //カメラ映像よりも手前に持ってくる
+    backgroundColor: 'rgba(244, 244, 244, 0.81)', 
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  backButton:{
+    flexDirection:'row',
+    alignItems:'center',
+  },
+  backButtonText:{
+    fontSize:16,
+    fontWeight:'bold',
+    color:'#1A365D',
+    marginLeft:5
+  },
+
 });
