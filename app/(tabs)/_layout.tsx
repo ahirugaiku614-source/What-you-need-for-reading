@@ -16,7 +16,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
-      {/* 1. ★ 新しく追加する真っ白なホーム画面 */}
+      {/*  ホーム画面 */}
       <Tabs.Screen
         name="index"
         options={{
@@ -25,7 +25,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* 2. ★ カメラ画面（名前やアイコンをカメラ用に変更） */}
+      {/* カメラ画面（名前やアイコンをカメラ用に変更） */}
       <Tabs.Screen
         name="camera"
         options={{

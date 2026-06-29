@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { router } from 'expo-router';
 import React, { useMemo, useRef, useState } from 'react';
 import { Button, LayoutChangeEvent, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
+import { Ionicons } from '@expo/vector-icons';
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -475,6 +476,12 @@ const callGeminiFallback=async(cleanedText:String)=>{
   return (
     <View style={styles.container}>
       <CameraView style={StyleSheet.absoluteFill} facing="back" ref={cameraRef} zoom={zoom}/>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/')}>
+          <Ionicons name="chevron-back" size={20} color="#1A365D" />
+          <Text style={styles.backButtonText}>ホーム</Text>
+        </TouchableOpacity>
+      </View>
       {showGuide && (
         <View style={styles.guideContainer}>
           <Text style={styles.guideText}>
@@ -904,7 +911,7 @@ const styles = StyleSheet.create({
   },
   guideContainer: {
     position: 'absolute',
-    top: 60,                // 画面上部からの位置（ステータスバーを避ける高さ）
+    top: 110,                // 画面上部からの位置（ステータスバーを避ける高さ）
     left: 20,
     right: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.65)', // 黒の65%半透明（薄く透ける背景）
@@ -985,5 +992,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 2,
     elevation: 3,
+  },
+  header:{
+    position: 'absolute',    //映像の上に浮かせる
+    top: 50,                 // スマホ上部のステータスバーを避ける
+    left: 15,
+    zIndex: 40,              //カメラ映像よりも手前に持ってくる
+    backgroundColor: 'rgba(247, 244, 235, 0.8)', 
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  backButton:{
+    flexDirection:'row',
+    alignItems:'center',
+  },
+  backButtonText:{
+    fontSize:16,
+    fontWeight:'bold',
+    color:'#1A365D',
+    marginLeft:5
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

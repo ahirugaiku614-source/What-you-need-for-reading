@@ -53,6 +53,7 @@ const style = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
+        paddingRight:15,
     },
     TitleIcon: {
         marginRight: 10
