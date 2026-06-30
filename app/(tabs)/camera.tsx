@@ -48,7 +48,7 @@ export default function CameraScreen() {
 
       await AsyncStorage.setItem('dictionary_memos', JSON.stringify(updatedMemos));
 
-      alert(`【文章の抜き取り】\nexplore画面に保存しました！\n\n${cleanedText}`);
+      alert(`【文章の抜き取り】\nメモ画面に保存しました！\n\n${cleanedText}`);
       return;
     } catch (error) {
       console.error('保存エラー:', error);

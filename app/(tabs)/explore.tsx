@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     color: '#007aff',
   },
   
-  /* ★ 追加: タグ検索バー関連のスタイル */
+  /*  タグ検索バー関連のスタイル */
   searchTagSection: {
     paddingHorizontal: 15,
     marginBottom: 10,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  /* ★ 追加: 各カード内タグ機能のスタイル */
+  /* 各カード内タグ機能のスタイル */
   tagSection: {
     borderTopWidth: 1,
     borderTopColor: '#f5f5f5',

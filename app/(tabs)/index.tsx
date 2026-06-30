@@ -45,7 +45,7 @@ const style = StyleSheet.create({
     container: {
         flex: 1,
         width:'100%',
-        backgroundColor: '#F7F4EB',
+        backgroundColor: '#e1d9c2',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -82,14 +82,14 @@ const style = StyleSheet.create({
         backgroundColor: '#2B6CB0',
         padding: 18,
         width: 300,
-        borderRadius: 12,
+        borderRadius: 20,
         marginBottom: 20,
         
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 5
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 3
     },
     buttonText: {
        textAlign: 'center',
